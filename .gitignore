@@ -1,0 +1,16 @@
+# Compiled object files
+*.o
+
+# Compiled binary files in bin/
+bin/*
+
+
+# Flex and Bison generated files
+encrypter.cpp
+encrypter.hpp
+
+# Backup files
+*~
+
+# Build directories
+/build/
