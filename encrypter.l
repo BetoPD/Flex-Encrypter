@@ -1,27 +1,34 @@
 %option noyywrap
-%x FASTA
+%x OFFSET
 %x PARAMETERS
+%x VOCABULARY
 
 %{
 #include <iostream>
 #include <stdio.h>
 #include <string>
+#include <set>
 
-char *fastaFile;
+std::string fastaFile = "./instructions/";
 unsigned int offset;
 unsigned int tries;
 unsigned int parameterPos;
-char *curfilename; /* name of current input file */
+std::string curfilename; /* name of current input file */
+char firstChar;
+// set of chars 
+std::set<char> vocabulary;
+unsigned int numericValue;
+
 
 struct bufstack {
     struct bufstack *prev;  /* previous entry */
     YY_BUFFER_STATE bs;     /* saved buffer */
     int lineno;             /* saved line number */
-    char *filename;         /* name of this file */
+    std::string filename;         /* name of this file */
     FILE *f;                /* current file */
 } *curbs = 0;               /* name of current input file */
 
-int newfile(char *fn);
+int newfile(const char *fn);
 int popfile(void);
         
 %}
@@ -35,7 +42,7 @@ int popfile(void);
 <PARAMETERS>[^,\n]+ {
     
     if (parameterPos == 0) {
-        fastaFile = yytext;
+        fastaFile += yytext;
     } else if (parameterPos == 1) {
         offset = atoi(yytext);
     } else if (parameterPos == 2) {
@@ -51,12 +58,65 @@ int popfile(void);
 
 <PARAMETERS>\n {
     parameterPos = 0;
-    newfile(fastaFile);
-    BEGIN FASTA;
+    yylineno++;
+
+    std::cout << "fasta file: " << fastaFile << std::endl;
+    std::cout << "offset: " << offset << std::endl;
+    std::cout << "tries: " << tries << std::endl;
+
+    if(!newfile(fastaFile.c_str()))
+        yyterminate();
+
+    
+    BEGIN OFFSET;
 }
 
-<FASTA> {
-    // ignore
+<OFFSET>^">".+ {
+    // size of yytext
+    unsigned int size = strlen(++yytext);
+
+    if (offset > size) 
+        offset-=size;
+    else 
+    {
+        firstChar = yytext[offset];
+        numericValue = static_cast<int>(firstChar);
+        BEGIN VOCABULARY;
+    }
+}
+
+<OFFSET>.|\n {
+    // ignore the rest
+}
+
+<VOCABULARY>^[A-Z]+ {
+    // if size of vocabulary is 20 change state
+    if (vocabulary.size() >= 20)
+    {
+        BEGIN INITIAL;
+        return 0;
+    }
+
+    unsigned int size = strlen(yytext);
+
+    if(numericValue > size) 
+        numericValue-=size;
+    else 
+    {
+        vocabulary.insert(yytext[numericValue]);
+        unsigned int tempNumericValue = numericValue;
+        numericValue = static_cast<int>(yytext[numericValue]);
+
+        for(unsigned int i = tempNumericValue; i < size; i+=numericValue)
+        {
+            vocabulary.insert(yytext[i]);
+        }
+    }
+    
+}
+
+<VOCABULARY>.|\n {
+    // ignore the rest
 }
 
 . |
@@ -74,9 +134,22 @@ int  main(int argc, char **argv)
     }
     if(newfile(argv[1]))
         yylex();
+
+    /* first char */
+
+    std::cout << "First char: " << firstChar << std::endl;
+    std::cout << "Numeric value: " << static_cast<int>(firstChar) << std::endl;
+
+    /* print vocabulary */
+
+    std::cout << "Vocabulary: ";
+    for (std::set<char>::iterator it = vocabulary.begin(); it != vocabulary.end(); ++it)
+        std::cout << *it << " ";
+    std::cout << std::endl;
+
 }
 
-int newfile(char *fn)
+int newfile(const char *fn)
 {
     FILE *f = fopen(fn, "r");
     struct bufstack *bs = (struct bufstack *)malloc(sizeof(struct bufstack));
