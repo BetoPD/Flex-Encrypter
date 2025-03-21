@@ -16,7 +16,9 @@ unsigned int parameterPos;
 std::string curfilename; /* name of current input file */
 char firstChar;
 // set of chars 
+
 std::set<char> vocabulary;
+std::set<char> unusedVocabulary = {'B', 'Z', 'X', 'J', 'U', 'O'};
 unsigned int numericValue;
 
 
@@ -109,7 +111,13 @@ int popfile(void);
         while(tempNumericValue < size)
         {
             // std::cout << "Adding to vocabulary: " << yytext[tempNumericValue] << std::endl;
-            vocabulary.insert(yytext[tempNumericValue]);
+            auto it = unusedVocabulary.find(yytext[tempNumericValue]);
+
+            // if the word is not in the unused vocabulary, add it to the vocabulary
+            if (it == unusedVocabulary.end())
+                vocabulary.insert(yytext[tempNumericValue]);
+            
+
             tempNumericValue+=numericValue;
         }
 
@@ -150,9 +158,13 @@ int main(int argc, char **argv)
     std::cout << "Numeric value: " << static_cast<int>(firstChar) << std::endl;
 
     /* print vocabulary */
-
     std::cout << "Vocabulary: ";
-    for (std::set<char>::iterator it = vocabulary.begin(); it != vocabulary.end(); ++it)
+    for (auto it = vocabulary.begin(); it != vocabulary.end(); ++it)
+        std::cout << *it << " ";
+    std::cout << std::endl;
+    /* unused words */
+    std::cout << "Unused vocabulary: ";
+    for (auto it = unusedVocabulary.begin(); it != unusedVocabulary.end(); ++it)
         std::cout << *it << " ";
     std::cout << std::endl;
 
