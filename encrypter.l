@@ -13,6 +13,7 @@
 std::string fastaFile = "./instructions/";
 unsigned int offset;
 unsigned int tries;
+unsigned int currentTries;
 unsigned int parameterPos;
 std::string curfilename; /* name of current input file */
 char firstChar;
@@ -36,6 +37,7 @@ int newfile(const char *fn);
 int popfile(void);
 std::map<char, char> createMap();
 void printVocabulary();
+void resetParameters();
 // File with the results
 FILE *results;
         
@@ -44,8 +46,7 @@ FILE *results;
 %%
 
 ^"#" {
-    vocabulary.clear();
-    alphabetMap.clear();
+    resetParameters();
     std::cout << "New parameters" << std::endl;
     BEGIN PARAMETERS;
 }
@@ -119,6 +120,27 @@ FILE *results;
     }
 }
 
+<OFFSET><<EOF>> {
+    currentTries++;
+    if (currentTries <= tries)
+    {
+        popfile();
+        newfile(fastaFile.c_str());
+        BEGIN OFFSET;
+    }
+    else
+    {
+        std::cout << "Unable to work with the offset" << std::endl;
+        // delete the results file
+        fclose(results);
+        if (remove("decrypt/result.txt") != 0)
+            perror("Error deleting file");
+        else
+            std::cout << "File successfully deleted" << std::endl;
+        yyterminate();
+    }
+}
+
 <OFFSET>.|\n {
     // ignore the rest
 }
@@ -130,12 +152,6 @@ FILE *results;
         BEGIN INITIAL;
         std::cout << "Popping file" << std::endl;
         popfile();
-        fastaFile = "./instructions/";
-        offset = 0;
-        tries = 0;
-        parameterPos = 0;
-        firstChar = 0;
-        numericValue = 0;
         alphabetMap = createMap();
         printVocabulary();
         break;
@@ -176,6 +192,17 @@ FILE *results;
     
 }
 
+<VOCABULARY><<EOF>> {
+    std::cout << "Not enough words to work with the offset" << int(firstChar) << std::endl;
+    // delete the results file
+    fclose(results);
+    if (remove("decrypt/result.txt") != 0)
+        perror("Error deleting file");
+    else
+        std::cout << "File successfully deleted" << std::endl;
+    yyterminate();
+}
+
 <VOCABULARY>.|\n {
     // ignore the rest
 }
@@ -196,6 +223,8 @@ int main(int argc, char **argv)
     if(newfile(argv[1]))
         yylex();
 
+    /* closing result file */
+    std::cout << "Closing result file" << std::endl;
     fclose(results);
 
 }
@@ -269,4 +298,17 @@ void printVocabulary()
         std::cout << it->first << " => " << it->second << std::endl;
     }
     
+}
+
+void resetParameters()
+{
+    fastaFile = "./instructions/";
+    offset = 0;
+    tries = 0;
+    parameterPos = 0;
+    firstChar = 0;
+    numericValue = 0;
+    currentTries = 0;
+    alphabetMap.clear();
+    vocabulary.clear();
 }
