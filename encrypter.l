@@ -103,14 +103,23 @@ int popfile(void);
         numericValue-=size;
     else 
     {
-        vocabulary.insert(yytext[numericValue]);
         unsigned int tempNumericValue = numericValue;
-        numericValue = static_cast<int>(yytext[numericValue]);
+        numericValue = static_cast<int>(firstChar);
 
-        for(unsigned int i = tempNumericValue; i < size; i+=numericValue)
+        while(tempNumericValue < size)
         {
-            vocabulary.insert(yytext[i]);
+            // std::cout << "Adding to vocabulary: " << yytext[tempNumericValue] << std::endl;
+            vocabulary.insert(yytext[tempNumericValue]);
+            tempNumericValue+=numericValue;
         }
+
+        // normalize the value with respect to the size of the vocabulary
+        tempNumericValue-=size;
+
+        // if there was a missing value, use it for the next offset
+        if (tempNumericValue > 0)
+            numericValue = tempNumericValue;
+
     }
     
 }
@@ -126,7 +135,7 @@ int popfile(void);
 
 %%
 
-int  main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     if(argc < 2) {
         fprintf(stderr, "need filename\n");
