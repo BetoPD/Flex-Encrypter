@@ -7,7 +7,8 @@
 #include <iostream>
 #include <stdio.h>
 #include <string>
-#include <set>
+#include <unordered_set>
+#include <map>
 
 std::string fastaFile = "./instructions/";
 unsigned int offset;
@@ -17,8 +18,9 @@ std::string curfilename; /* name of current input file */
 char firstChar;
 // set of chars 
 
-std::set<char> vocabulary;
-std::set<char> unusedVocabulary = {'B', 'Z', 'X', 'J', 'U', 'O'};
+std::unordered_set<char> vocabulary;
+std::unordered_set<char> unusedVocabulary = {'B', 'Z', 'X', 'J', 'U', 'O'};
+std::map<char, char> alphabetMap;
 unsigned int numericValue;
 
 
@@ -32,6 +34,7 @@ struct bufstack {
 
 int newfile(const char *fn);
 int popfile(void);
+std::map<char, char> createMap();
         
 %}
 
@@ -39,6 +42,11 @@ int popfile(void);
 
 ^"#" {
     BEGIN PARAMETERS;
+}
+
+[a-zA-Z]+ {
+    std::cout << "Main file: " << curfilename << std::endl;
+    std::cout << yytext << std::endl;
 }
 
 <PARAMETERS>[^,\n]+ {
@@ -69,7 +77,6 @@ int popfile(void);
     if(!newfile(fastaFile.c_str()))
         yyterminate();
 
-    
     BEGIN OFFSET;
 }
 
@@ -96,7 +103,16 @@ int popfile(void);
     if (vocabulary.size() >= 20)
     {
         BEGIN INITIAL;
-        return 0;
+        std::cout << "Popping file" << std::endl;
+        popfile();
+        fastaFile = "./instructions/";
+        offset = 0;
+        tries = 0;
+        parameterPos = 0;
+        firstChar = 0;
+        numericValue = 0;
+        alphabetMap = createMap();
+        break;
     }
 
     unsigned int size = strlen(yytext);
@@ -110,12 +126,14 @@ int popfile(void);
 
         while(tempNumericValue < size)
         {
+            // current char
+            char c = yytext[tempNumericValue];
             // std::cout << "Adding to vocabulary: " << yytext[tempNumericValue] << std::endl;
-            auto it = unusedVocabulary.find(yytext[tempNumericValue]);
+            auto it = unusedVocabulary.find(c);
 
             // if the word is not in the unused vocabulary, add it to the vocabulary
             if (it == unusedVocabulary.end())
-                vocabulary.insert(yytext[tempNumericValue]);
+                vocabulary.insert(c);
             
 
             tempNumericValue+=numericValue;
@@ -152,21 +170,11 @@ int main(int argc, char **argv)
     if(newfile(argv[1]))
         yylex();
 
-    /* first char */
-
-    std::cout << "First char: " << firstChar << std::endl;
-    std::cout << "Numeric value: " << static_cast<int>(firstChar) << std::endl;
-
-    /* print vocabulary */
-    std::cout << "Vocabulary: ";
-    for (auto it = vocabulary.begin(); it != vocabulary.end(); ++it)
-        std::cout << *it << " ";
-    std::cout << std::endl;
-    /* unused words */
-    std::cout << "Unused vocabulary: ";
-    for (auto it = unusedVocabulary.begin(); it != unusedVocabulary.end(); ++it)
-        std::cout << *it << " ";
-    std::cout << std::endl;
+    /* print alphabet map */
+    for (auto it = alphabetMap.begin(); it != alphabetMap.end(); it++)
+    {
+        std::cout << it->first << " -> " << it->second << std::endl;
+    }
 
 }
 
@@ -208,4 +216,25 @@ int popfile(void)
     yylineno = curbs->lineno;
     curfilename = curbs->filename;
     return 1;
+}
+
+std::map<char, char> createMap()
+{
+    std::string alphabet = "ACDEFGHIKLMNPQRSTVWY";
+    std::map<char, char> alphabetMap;
+    alphabetMap['B'] = 'Z';
+    alphabetMap['Z'] = 'B';
+    alphabetMap['X'] = 'J';
+    alphabetMap['J'] = 'X';
+    alphabetMap['U'] = 'O';
+    alphabetMap['O'] = 'U';
+
+    auto it = vocabulary.begin();
+
+    for (size_t i = 0; i < alphabet.size() && it != vocabulary.end(); ++i, ++it) 
+    {
+        alphabetMap[alphabet[i]] = *it;
+    }
+
+    return alphabetMap;
 }
