@@ -35,18 +35,41 @@ struct bufstack {
 int newfile(const char *fn);
 int popfile(void);
 std::map<char, char> createMap();
+void printVocabulary();
+// File with the results
+FILE *results;
         
 %}
 
 %%
 
 ^"#" {
+    vocabulary.clear();
+    alphabetMap.clear();
+    std::cout << "New parameters" << std::endl;
     BEGIN PARAMETERS;
 }
 
-[a-zA-Z]+ {
-    std::cout << "Main file: " << curfilename << std::endl;
-    std::cout << yytext << std::endl;
+. |
+\n {
+
+    std::string word = yytext;
+    std::string result = "";
+    // convert the word to uppercase
+    std::transform(word.begin(), word.end(), word.begin(), ::toupper);
+
+    for (size_t i = 0; i < word.size(); i++)
+    {
+        char c = word[i];
+        auto it = alphabetMap.find(c);
+
+        if (it != alphabetMap.end())
+            result += it->second;
+        else
+            result += c;
+    }
+
+    fprintf(results, "%s", result.c_str());
 }
 
 <PARAMETERS>[^,\n]+ {
@@ -68,11 +91,11 @@ std::map<char, char> createMap();
 
 <PARAMETERS>\n {
     parameterPos = 0;
-    yylineno++;
 
     std::cout << "fasta file: " << fastaFile << std::endl;
     std::cout << "offset: " << offset << std::endl;
     std::cout << "tries: " << tries << std::endl;
+
 
     if(!newfile(fastaFile.c_str()))
         yyterminate();
@@ -90,6 +113,8 @@ std::map<char, char> createMap();
     {
         firstChar = yytext[offset];
         numericValue = static_cast<int>(firstChar);
+        popfile();
+        newfile(fastaFile.c_str());
         BEGIN VOCABULARY;
     }
 }
@@ -112,6 +137,7 @@ std::map<char, char> createMap();
         firstChar = 0;
         numericValue = 0;
         alphabetMap = createMap();
+        printVocabulary();
         break;
     }
 
@@ -154,10 +180,6 @@ std::map<char, char> createMap();
     // ignore the rest
 }
 
-. |
-\n {
-    // ignore the rest
-}
 
 %%
 
@@ -167,14 +189,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "need filename\n");
         return 1;
     }
+
+    /* the second argument is the file where it will store the result encryption */
+    results = fopen(argv[2], "w");
+
     if(newfile(argv[1]))
         yylex();
 
-    /* print alphabet map */
-    for (auto it = alphabetMap.begin(); it != alphabetMap.end(); it++)
-    {
-        std::cout << it->first << " -> " << it->second << std::endl;
-    }
+    fclose(results);
 
 }
 
@@ -237,4 +259,14 @@ std::map<char, char> createMap()
     }
 
     return alphabetMap;
+}
+
+void printVocabulary()
+{
+    std::cout << "Printing vocabulary" << std::endl;
+    for (auto it = alphabetMap.begin(); it != alphabetMap.end(); ++it)
+    {
+        std::cout << it->first << " => " << it->second << std::endl;
+    }
+    
 }

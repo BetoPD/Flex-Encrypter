@@ -6,6 +6,8 @@ debug: encrypter.l
 	flex -Ld -o encrypter.cpp encrypter.l
 	g++ -std=c++20 -g -o bin/encrypter encrypter.cpp -ll
 
+# clean everything in bin folder
 clean:
-	rm -f encrypter.cpp bin/encrypter
+	rm -rf bin/* encrypter.cpp
+
 
