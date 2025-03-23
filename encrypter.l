@@ -13,8 +13,11 @@
 std::string fastaFile = "./instructions/";
 unsigned int offset;
 unsigned int tries;
+unsigned int thirdParameter;
 unsigned int currentTries;
 unsigned int parameterPos;
+unsigned int lastPos = 0;
+bool enc = false;
 std::string curfilename; /* name of current input file */
 char firstChar;
 // set of chars 
@@ -51,26 +54,42 @@ FILE *results;
     BEGIN PARAMETERS;
 }
 
-. |
 \n {
 
-    std::string word = yytext;
-    std::string result = "";
-    // convert the word to uppercase
-    std::transform(word.begin(), word.end(), word.begin(), ::toupper);
-
-    for (size_t i = 0; i < word.size(); i++)
+    if (yylineno > thirdParameter && thirdParameter != 0)
     {
-        char c = word[i];
-        auto it = alphabetMap.find(c);
+        popfile();
+        lastPos = yylineno;
+        yylineno = 1;
+        break;    
+    }   
+    
+    if (yylineno > lastPos)
+        fputc('\n', results);
+    
+    yylineno++;
 
-        if (it != alphabetMap.end())
-            result += it->second;
-        else
-            result += c;
+
+}
+
+. {
+
+    if (yylineno <= lastPos)
+    {
+        std::cout << "Ignoring line" << std::endl;
+        break;
     }
 
-    fprintf(results, "%s", result.c_str());
+    char c = *yytext;
+    c = toupper(c);
+    
+    auto it = alphabetMap.find(c);
+
+    if (it != alphabetMap.end())
+        c = it->second;
+
+    fputc(c, results);
+        
 }
 
 <PARAMETERS>[^,\n]+ {
@@ -81,8 +100,11 @@ FILE *results;
         offset = atoi(yytext);
     } else if (parameterPos == 2) {
         tries = atoi(yytext);
+    } else {
+        thirdParameter = atoi(yytext);
     }
 
+    std::cout << "Adding parameter" << std::endl;
     parameterPos++;
 }
 
@@ -96,6 +118,7 @@ FILE *results;
     std::cout << "fasta file: " << fastaFile << std::endl;
     std::cout << "offset: " << offset << std::endl;
     std::cout << "tries: " << tries << std::endl;
+    std::cout << "third parameter: " << thirdParameter << std::endl;
 
 
     if(!newfile(fastaFile.c_str()))
@@ -149,11 +172,15 @@ FILE *results;
     // if size of vocabulary is 20 change state
     if (vocabulary.size() >= 20)
     {
-        BEGIN INITIAL;
         std::cout << "Popping file" << std::endl;
         popfile();
         alphabetMap = createMap();
         printVocabulary();
+
+        if (!enc)
+            newfile("./decrypt/result.txt");   
+        
+        BEGIN INITIAL;
         break;
     }
 
@@ -217,7 +244,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* the second argument is the file where it will store the result encryption */
+    /* the second argument is the file where it will store the result encryption or decryption*/
     results = fopen(argv[2], "w");
 
     if(newfile(argv[1]))
@@ -245,7 +272,7 @@ int newfile(const char *fn)
     bs->filename = fn;
     yy_switch_to_buffer(bs->bs);
     curbs = bs;
-    yylineno = 1;
+    /* yylineno = 1; */
     curfilename = fn;
     return 1;
 }
@@ -264,7 +291,7 @@ int popfile(void)
     if(!prevbs) return 0;
     yy_switch_to_buffer(prevbs->bs);
     curbs = prevbs;
-    yylineno = curbs->lineno;
+    /* yylineno = curbs->lineno; */
     curfilename = curbs->filename;
     return 1;
 }
@@ -284,7 +311,10 @@ std::map<char, char> createMap()
 
     for (size_t i = 0; i < alphabet.size() && it != vocabulary.end(); ++i, ++it) 
     {
-        alphabetMap[alphabet[i]] = *it;
+        if (enc)
+            alphabetMap[alphabet[i]] = *it;
+        else
+            alphabetMap[*it] = alphabet[i];
     }
 
     return alphabetMap;
@@ -309,6 +339,7 @@ void resetParameters()
     firstChar = 0;
     numericValue = 0;
     currentTries = 0;
+    thirdParameter = 0;
     alphabetMap.clear();
     vocabulary.clear();
 }
