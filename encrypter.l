@@ -17,7 +17,7 @@ unsigned int thirdParameter;
 unsigned int currentTries;
 unsigned int parameterPos;
 unsigned int lastPos = 0;
-bool enc = false;
+bool enc = true;
 std::string curfilename; /* name of current input file */
 char firstChar;
 // set of chars 
@@ -56,6 +56,12 @@ FILE *results;
 
 \n {
 
+    if (enc) 
+    {
+        fputc('\n', results);
+        break;
+    }
+
     if (yylineno > thirdParameter && thirdParameter != 0)
     {
         popfile();
@@ -74,11 +80,9 @@ FILE *results;
 
 . {
 
-    if (yylineno <= lastPos)
-    {
-        std::cout << "Ignoring line" << std::endl;
+    if (yylineno <= lastPos && !enc)
         break;
-    }
+    
 
     char c = *yytext;
     c = toupper(c);
@@ -239,21 +243,30 @@ FILE *results;
 
 int main(int argc, char **argv)
 {
-    if(argc < 2) {
-        fprintf(stderr, "need filename\n");
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s input_file output_file operation\n", argv[0]);
         return 1;
     }
 
-    /* the second argument is the file where it will store the result encryption or decryption*/
+    /* Abre el archivo de salida */
     results = fopen(argv[2], "w");
+    if (!results) {
+        perror("Error opening output file");
+        return 1;
+    }
 
-    if(newfile(argv[1]))
+    /* Determina si la operación es 'encrypt' */
+    enc = strcmp(argv[3], "encrypt") == 0;
+
+    /* Procesa el archivo de entrada */
+    if (newfile(argv[1]))
         yylex();
 
-    /* closing result file */
+    /* Cierra el archivo de resultados */
     std::cout << "Closing result file" << std::endl;
     fclose(results);
 
+    return 0;
 }
 
 int newfile(const char *fn)
