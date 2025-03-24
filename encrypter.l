@@ -54,6 +54,8 @@ FILE *results;
     BEGIN PARAMETERS;
 }
 
+\r {}
+
 \n {
 
     if (enc) 
@@ -131,7 +133,7 @@ FILE *results;
     BEGIN OFFSET;
 }
 
-<OFFSET>^">".+ {
+<OFFSET>^">"[^ \r\n]+ {
     // size of yytext
     unsigned int size = strlen(++yytext);
 

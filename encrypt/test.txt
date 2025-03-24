@@ -1,4 +1,0 @@
-#File3.fasta,1,1
-
-HOLA AMIGOS
-
