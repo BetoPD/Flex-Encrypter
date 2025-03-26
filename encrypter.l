@@ -2,6 +2,8 @@
 %x OFFSET
 %x PARAMETERS
 %x VOCABULARY
+%option yylineno
+%option outfile="encrypter.cpp"
 
 %{
 #include <iostream>
