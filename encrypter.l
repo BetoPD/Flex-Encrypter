@@ -2,8 +2,6 @@
 %x OFFSET
 %x PARAMETERS
 %x VOCABULARY
-%option yylineno
-%option outfile="encrypter.cpp"
 
 %{
 #include <iostream>
@@ -55,8 +53,6 @@ FILE *results;
     std::cout << "New parameters" << std::endl;
     BEGIN PARAMETERS;
 }
-
-\r {}
 
 \n {
 
@@ -135,7 +131,7 @@ FILE *results;
     BEGIN OFFSET;
 }
 
-<OFFSET>^">"[^ \r\n]+ {
+<OFFSET>^">".+ {
     // size of yytext
     unsigned int size = strlen(++yytext);
 
@@ -247,24 +243,48 @@ FILE *results;
 
 int main(int argc, char **argv)
 {
+    std::cout << "Starting program" << std::endl;
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s input_file output_file operation\n", argv[0]);
+        std::cerr << "Usage: " << argv[0] << " <input_file> <output_file> <encrypt/decrypt>" << std::endl;
         return 1;
     }
+
+    std::cout << "Opening input file: " << argv[1] << std::endl;
 
     /* Abre el archivo de salida */
     results = fopen(argv[2], "w");
     if (!results) {
-        perror("Error opening output file");
+        std::cerr << "Error opening output file: " << std::endl;
         return 1;
     }
 
+    
     /* Determina si la operación es 'encrypt' */
-    enc = strcmp(argv[3], "encrypt") == 0;
+    std::string operation = argv[3];
+    if (operation == "encrypt")
+        enc = true;
+    else if (operation == "decrypt")
+        enc = false;
+    else {
+        std::cerr << "Invalid operation. Use 'encrypt' or 'decrypt'." << std::endl;
+        fclose(results);
+        return 1;
+    }
 
+    std::cout << "Opening result file: " << argv[2] << std::endl;
     /* Procesa el archivo de entrada */
     if (newfile(argv[1]))
+    {
+        std::cout << "Processing input file" << std::endl;
         yylex();
+    }
+    else 
+    {
+        std::cerr << "Error opening input file" << std::endl;
+        fclose(results);
+        return 1;
+    }
+        
 
     /* Cierra el archivo de resultados */
     std::cout << "Closing result file" << std::endl;
@@ -273,43 +293,47 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int newfile(const char *fn)
+int newfile(const char *fn) 
 {
     FILE *f = fopen(fn, "r");
-    struct bufstack *bs = (struct bufstack *)malloc(sizeof(struct bufstack));
-    /* die if no file or no room */
-    if(!f) { perror(fn); return 0; }
-    if(!bs) { perror("malloc"); exit(1); }
-    /* remember state */
-    if(curbs)curbs->lineno = yylineno;
-    bs->prev = curbs;
-    /* set up current entry */
+    if (!f) {
+        std::cout << "Error opening file: " << fn << std::endl;
+        perror(fn);
+        return 0;
+    }
+
+    // Use new to properly construct the struct
+    struct bufstack *bs = new struct bufstack;
+    if (!bs) {  // Note: new throws std::bad_alloc on failure, but we'll mimic the original check
+        std::cout << "Out of memory" << std::endl;
+        fclose(f);
+        return 0;
+    }
+
     bs->bs = yy_create_buffer(f, YY_BUF_SIZE);
     bs->f = f;
-    bs->filename = fn;
+    bs->filename = fn;  // Now safe, as std::string is constructed
     yy_switch_to_buffer(bs->bs);
+
+    // Additional stack management, e.g.:
+    bs->prev = curbs;  // Assuming curbs is a global pointer to current buffer
     curbs = bs;
-    /* yylineno = 1; */
-    curfilename = fn;
+
     return 1;
 }
 
-int popfile(void)
+int popfile(void) 
 {
+    if (!curbs) return 0;
     struct bufstack *bs = curbs;
-    struct bufstack *prevbs;
-    if(!bs) return 0;
-    /* get rid of current entry
-    fclose(bs->f);
-    yy_delete_buffer(bs->bs);
-    switch back to previous */
-    prevbs = bs->prev;
-    free(bs);
-    if(!prevbs) return 0;
+    struct bufstack *prevbs = bs->prev;
+
+    // Use delete to properly destruct the struct
+    delete bs;
+
+    if (!prevbs) return 0;
     yy_switch_to_buffer(prevbs->bs);
     curbs = prevbs;
-    /* yylineno = curbs->lineno; */
-    curfilename = curbs->filename;
     return 1;
 }
 

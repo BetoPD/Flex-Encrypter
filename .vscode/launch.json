@@ -2,12 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug from Makefile",
+      "name": "Debug Encrypter",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/encrypter", // Ajusta el nombre del ejecutable
-      "args": ["./encrypt/test.txt"], // Ajusta los argumentos
-      "stopAtEntry": false,
+      "args": [
+        "./encrypt/Original_document.txt",
+        "./decrypt/result.txt",
+        "encrypt"
+      ], // Ajusta los argumentos
+      "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": false,
