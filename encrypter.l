@@ -2,6 +2,7 @@
 %x OFFSET
 %x PARAMETERS
 %x VOCABULARY
+%option outfile="encrypter.cpp"
 
 %{
 #include <iostream>
@@ -43,6 +44,7 @@ void printVocabulary();
 void resetParameters();
 // File with the results
 FILE *results;
+unsigned int yylineno = 1; 
         
 %}
 
